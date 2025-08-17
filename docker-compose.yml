@@ -1,6 +1,6 @@
 services:
   rabbitmq:
-    image: rabbitmq:latest
+    image: rabbitmq:management
     container_name: rabbitmq
     ports:
       - "5672:5672" # RabbitMQ default port
@@ -8,40 +8,47 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=user
       - RABBITMQ_DEFAULT_PASS=password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
 
   postgres:
-    image: postgres:15
+    image: postgres:latest
     container_name: postgres
     restart: always
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     command: ["postgres", "-c", "wal_level=logical"]
 
   debezium:
-    image: debezium/connect:2.6
+    image: debezium/server:2.7.3.Final
     container_name: debezium
     depends_on:
       - postgres
       - rabbitmq
     environment:
       # Debezium configuration
-      - DEBEZIUM_SERVER_NAME=debezium
+      - DEBEZIUM_SERVER_NAME=debezium-server
+      - DEBEZIUM_SOURCE_OFFSET_STORAGE_FILE_FILENAME=/debezium/data/offsets.dat
+      - DEBEZIUM_SOURCE_OFFSET_FLUSH_INTERVAL_MS=60000
       - DEBEZIUM_SOURCE_TOMBSTONES_ON_DELETE=false
-      - QUAKUS_LOG_CONSOLE=false
+      - QUAKUS_LOG_CONSOLE_JSON=false
 
       # Postgres source configuration
       - DEBEZIUM_SOURCE_CONNECTOR_CLASS=io.debezium.connector.postgresql.PostgresConnector
       - DEBEZIUM_SOURCE_PLUGIN_NAME=pgoutput
-      - DEBEZIUM_SOURCE_DATABASE_HOST=postgres
+      - DEBEZIUM_SOURCE_DATABASE_HOSTNAME=postgres
       - DEBEZIUM_SOURCE_DATABASE_PORT=5432
       - DEBEZIUM_SOURCE_DATABASE_USER=postgres
-      - DEBEZIUM_SOURCE_DATABASE_PASSWORD=postgres
-      - DEBEZIUM_SOURCE_DATABASE_DBNAME=postgres
+      - DEBEZIUM_SOURCE_DATABASE_PASSWORD=password
+      - DEBEZIUM_SOURCE_DATABASE_DBNAME=demo-product
+      - DEBEZIUM_SOURCE_SCHEMA_INCLUDE_LIST=public
+      - DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST=public.Products
+      - DEBEZIUM_SOURCE_TOPIC_PREFIX=commerce
 
       # RabbitMQ sink configuration
       - DEBEZIUM_SINK_TYPE=rabbitmq
@@ -50,6 +57,18 @@ services:
       - DEBEZIUM_SINK_RABBITMQ_CONNECTION_USERNAME=user
       - DEBEZIUM_SINK_RABBITMQ_CONNECTION_PASSWORD=password
       - DEBEZIUM_SINK_RABBITMQ_EXCHANGE_NAME=product-changes
+
+      # Transformations
+      - DEBEZIUM_TRANSFORMS=unwrap,reroute
+      - DEBEZIUM_TRANSFORMS_UNWRAP_TYPE=io.debezium.transforms.ExtractNewRecordState
+      - DEBEZIUM_FORMAT_VALUE=json
+      - DEBEZIUM_FORMAT_VALUE_SCHEMAS_ENABLE=false
+      - DEBEZIUM_SOURCE_DECIMAL_HANDLING_MODE=string
+      - DEBEZIUM_TRANSFORMS_REROUTE_TYPE=io.debezium.transforms.ByLogicalTableRouter
+      - DEBEZIUM_TRANSFORMS_REROUTE_TOPIC_REGEX=(.*)\.public\.Products
+      - DEBEZIUM_TRANSFORMS_REROUTE_TOPIC_REPLACEMENT=product-changes
+      - DEBEZIUM_TRANSFORMS_REROUTE_KEY_REGEX=(.*)\.public\.Products
+      - DEBEZIUM_TRANSFORMS_REROUTE_KEY_REPLACEMENT=product-changes
 
       # - BOOTSTRAP_SERVERS=rabbitmq:9092
       # - GROUP_ID=1
@@ -86,5 +105,8 @@ services:
 volumes:
   postgres_data:
     name: compose-files_taggle-data
+
+  rabbitmq_data:
+    name: general-rabbitmq
 
   elasticsearch_data:
