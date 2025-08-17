@@ -1,6 +1,43 @@
-@SearchService_HostAddress = http://localhost:5135
+@SearchService_HostAddress = http://localhost:5050
 
-GET {{SearchService_HostAddress}}/weatherforecast/
+### Search products by query
+GET {{SearchService_HostAddress}}/api/search/products?q=gaming&page=1&pageSize=10
+Accept: application/json
+
+###
+
+### Search all products (no query)
+GET {{SearchService_HostAddress}}/api/search/products
+Accept: application/json
+
+###
+
+### Get all products with pagination
+GET {{SearchService_HostAddress}}/api/search/products/all?page=1&pageSize=5
+Accept: application/json
+
+###
+
+### Get product by ID from search index
+GET {{SearchService_HostAddress}}/api/search/products/1
+Accept: application/json
+
+###
+
+### Search for "laptop" products
+GET {{SearchService_HostAddress}}/api/search/products?q=laptop
+Accept: application/json
+
+###
+
+### Search with fuzzy matching (typo in "laptop")
+GET {{SearchService_HostAddress}}/api/search/products?q=laptoop
+Accept: application/json
+
+###
+
+### Search in description
+GET {{SearchService_HostAddress}}/api/search/products?q=gaming RTX
 Accept: application/json
 
 ###

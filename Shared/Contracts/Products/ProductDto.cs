@@ -14,3 +14,4 @@ public record SaveProductRequest(
 
 public record ProductChangeEvent(int Id, string Name, string Description, decimal Price) : BaseProductDto(Name, Description, Price);
 
+public record ProductIndex(int Id, string Name, string Description, decimal Price) : BaseProductDto(Name, Description, Price);
